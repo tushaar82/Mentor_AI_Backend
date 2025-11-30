@@ -39,7 +39,8 @@ export function LoginForm() {
     
     try {
       await login(data.email, data.password);
-      router.push('/dashboard');
+      // After login, redirect to preferences page for onboarding
+      router.push('/onboarding/preferences');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed. Please try again.');
     } finally {

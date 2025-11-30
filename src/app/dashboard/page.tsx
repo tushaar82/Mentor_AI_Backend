@@ -1,22 +1,60 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, BookOpen, Target, TrendingUp, Calendar } from 'lucide-react';
+import { LogOut, BookOpen, Target, TrendingUp, Calendar, Clock, FileText } from 'lucide-react';
+import { examAPI } from '@/lib/api';
 
 export default function DashboardPage() {
   const { user, logout, isLoading } = useAuth();
   const router = useRouter();
+  const [diagnosticTest, setDiagnosticTest] = useState<any>(null);
+  const [examSelection, setExamSelection] = useState<any>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/auth');
     }
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Try to get child profile first
+        const childResponse = await onboardingAPI.getChildProfile(user.id);
+        
+        if (childResponse.data) {
+          const childData = childResponse.data;
+          
+          // Get exam selection
+          try {
+            const examResponse = await examAPI.getExamSelection(childData.child_id);
+            setExamSelection(examResponse.data);
+            
+            // Get diagnostic test details
+            try {
+              const testResponse = await examAPI.getDiagnosticTest(examResponse.data.diagnostic_test_id);
+              setDiagnosticTest(testResponse.data);
+            } catch (err) {
+              console.log('Could not fetch diagnostic test details');
+            }
+          } catch (err) {
+            console.log('No exam selection found');
+          }
+        }
+      } catch (err) {
+        console.log('Could not fetch dashboard data');
+      }
+    };
+
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
   if (isLoading || !user) {
     return (
@@ -141,6 +179,92 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Diagnostic Test Card */}
+          {diagnosticTest && (
+            <Card className="border-2 border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  Diagnostic Test
+                </CardTitle>
+                <CardDescription>
+                  Your initial assessment is scheduled
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Test ID</p>
+                      <p className="text-xs text-gray-500">Reference for support</p>
+                    </div>
+                    <p className="text-sm font-mono bg-blue-100 px-2 py-1 rounded">
+                      {diagnosticTest.test_id}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Exam Type</p>
+                      <p className="text-xs text-gray-500">Target exam</p>
+                    </div>
+                    <p className="text-sm font-medium text-blue-600">
+                      {diagnosticTest.exam_type.replace('_', ' ')}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Scheduled Date</p>
+                      <p className="text-xs text-gray-500">When to take the test</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-blue-500" />
+                      <p className="text-sm font-medium">
+                        {new Date(diagnosticTest.scheduled_date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Duration</p>
+                      <p className="text-xs text-gray-500">Time allocated</p>
+                    </div>
+                    <p className="text-sm font-medium text-blue-600">
+                      {diagnosticTest.duration_minutes} minutes
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Total Questions</p>
+                      <p className="text-xs text-gray-500">Test length</p>
+                    </div>
+                    <p className="text-sm font-medium text-blue-600">
+                      {diagnosticTest.total_questions} questions
+                    </p>
+                  </div>
+                  
+                  <div className="pt-2 border-t">
+                    <Button
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      onClick={() => router.push('/diagnostic-test/' + diagnosticTest.test_id)}
+                    >
+                      Start Diagnostic Test
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

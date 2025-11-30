@@ -39,10 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await authAPI.login(email, password);
-    const { token, access_token, parent_id, email: userEmail } = response.data;
+    const { token, parent_id, email: userEmail } = response.data;
     
-    // Use token or access_token (whichever is returned by backend)
-    const authToken = token || access_token;
     const userData = {
       id: parent_id,
       email: userEmail,
@@ -50,20 +48,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role: 'parent' as const
     };
     
-    setToken(authToken);
+    setToken(token);
     setUser(userData);
-    localStorage.setItem('token', authToken);
+    localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const register = async (data: any) => {
     const response = await authAPI.register(data);
-    const { access_token, user: userData } = response.data;
+    const { parent_id, email, phone, message } = response.data;
     
-    setToken(access_token);
-    setUser(userData);
-    localStorage.setItem('token', access_token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    if (parent_id) {
+      const userData = {
+        id: parent_id,
+        email: email,
+        full_name: data.name,
+        mobile_number: data.mobile_number,
+        role: 'parent' as const
+      };
+      
+      // Note: Simple registration doesn't return a token, user needs to login
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } else {
+      throw new Error(message || 'Registration failed');
+    }
   };
 
   const logout = () => {
