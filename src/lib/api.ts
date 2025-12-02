@@ -20,8 +20,13 @@ api.interceptors.request.use((config) => {
 
 // Auth API
 export const authAPI = {
+  // Parent login
   login: (email: string, password: string) =>
     api.post('/api/auth/login/email', { email, password }),
+  
+  // Student login
+  studentLogin: (username: string, password: string) =>
+    api.post('/api/auth/login/student', { username, password }),
   
   register: (data: {
     name: string;
@@ -105,4 +110,14 @@ export const examAPI = {
   
   getDiagnosticTest: (test_id: string) =>
     api.get(`/api/diagnostic-test/${test_id}`),
+  
+  scheduleDiagnosticTest: (data: {
+    child_id: string;
+    exam_type: string;
+    scheduled_date: string;
+    test_id: string;
+  }) => api.post('/api/diagnostic-test/schedule', data),
+  
+  getScheduledTests: (child_id: string) =>
+    api.get('/api/diagnostic-test/student/' + child_id),
 };

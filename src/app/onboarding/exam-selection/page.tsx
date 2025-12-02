@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { examAPI } from '@/lib/api';
 import { ExamSelectionForm } from '@/components/onboarding/ExamSelectionForm';
-import { ExamDateSelectionDialog } from '@/components/onboarding/ExamDateSelectionDialog';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { onboardingAPI } from '@/lib/api';
@@ -34,12 +33,7 @@ export default function ExamSelectionPage() {
   const [examSelection, setExamSelection] = useState<ExamSelection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [showDateDialog, setShowDateDialog] = useState(false);
-  const [selectedExamType, setSelectedExamType] = useState<string>('');
-  const [selectedExamName, setSelectedExamName] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>('');
-  const [examDates, setExamDates] = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(true);
   const [childProfile, setChildProfile] = useState<any>(null);
 
   // Get parent_id from auth context and child_id from child profile
@@ -55,31 +49,48 @@ export default function ExamSelectionPage() {
 
       try {
         setLoading(true);
+        console.log('Exam Selection Page: Starting data fetch...');
+        console.log('User ID:', user.id);
         
         // Fetch child profile first
+        let childData;
         try {
+          console.log('Fetching child profile...');
           const childResponse = await onboardingAPI.getChildProfile(user.id);
-          setChildProfile(childResponse.data);
+          childData = childResponse.data;
+          setChildProfile(childData);
+          console.log('Child profile loaded:', childData);
         } catch (err) {
+          console.error('No child profile found:', err);
           // No child profile exists, redirect to child profile creation
           router.push('/onboarding/child-profile');
           return;
         }
         
         // Fetch available exams
+        console.log('Fetching available exams...');
         const examsResponse = await examAPI.getAvailableExams();
-        setAvailableExams(examsResponse.data.exams);
+        console.log('Available exams:', examsResponse.data);
+        setAvailableExams(examsResponse.data.exams || examsResponse.data);
         
         // Check if exam selection already exists
-        if (childProfile?.child_id) {
+        if (childData?.child_id) {
           try {
-            const selectionResponse = await examAPI.getExamSelection(childProfile.child_id);
+            console.log('Checking for existing exam selection...');
+            const selectionResponse = await examAPI.getExamSelection(childData.child_id);
             setExamSelection(selectionResponse.data);
+            console.log('Exam selection found, redirecting to schedule diagnostic');
+            
+            // If exam selection exists, redirect to schedule diagnostic page
+            router.push('/schedule-diagnostic');
+            return;
           } catch (err) {
-            // No exam selection exists yet
-            console.log('No exam selection found');
+            // No exam selection exists yet - this is expected
+            console.log('No exam selection found - showing form');
           }
         }
+        
+        console.log('Ready to show exam selection form');
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Failed to load exam information. Please try again.');
@@ -102,21 +113,12 @@ export default function ExamSelectionPage() {
   const handleExamSelect = (examData: any) => {
     setExamSelection(examData);
     setShowForm(false);
+    // Redirect to schedule diagnostic page
+    router.push('/schedule-diagnostic');
   };
 
-  const handleExamTypeSelect = (examType: string, examName: string, dates: any[]) => {
-    setSelectedExamType(examType);
-    setSelectedExamName(examName);
-    setExamDates(dates);
-    setShowDateDialog(true);
-  };
 
-  const handleDateSelect = (date: string) => {
-    setSelectedDate(date);
-    setShowDateDialog(false);
-    setShowForm(true);
-  };
-
+  // Show loading state while loading data
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -213,7 +215,7 @@ export default function ExamSelectionPage() {
                   Change Exam
                 </Button>
                 <Button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/parent-dashboard')}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6"
                 >
                   Go to Dashboard
@@ -221,108 +223,24 @@ export default function ExamSelectionPage() {
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <div>
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Available Exams</CardTitle>
-                <CardDescription>
-                  Select one of the following competitive exams
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                  {availableExams.map((exam) => (
-                    <Card key={exam.exam_type} className={`cursor-pointer hover:shadow-lg transition-all duration-300 border-2 hover:border-blue-300 ${exam.exam_type === 'JEE_COMBO' ? 'md:col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50' : ''}`}>
-                      <CardHeader className="pb-3">
-                        <CardTitle className={`text-xl text-center ${exam.exam_type === 'JEE_COMBO' ? 'text-indigo-700' : 'text-blue-700'}`}>
-                          {exam.exam_name}
-                          {exam.exam_type === 'JEE_COMBO' && (
-                            <span className="block text-sm font-normal text-indigo-600 mt-1">Best value - Prepare for both exams</span>
-                          )}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600 mb-2">Upcoming Dates:</h4>
-                          <div className="space-y-1">
-                            {exam.available_dates.slice(0, exam.exam_type === 'JEE_COMBO' ? 4 : 2).map((date) => (
-                              <div key={date} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                                <span>{new Date(date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}</span>
-                                <span className="text-sm text-blue-600 font-medium">
-                                  {Math.ceil((new Date(date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days left
-                                </span>
-                              </div>
-                            ))}
-                            {exam.exam_type === 'JEE_COMBO' && exam.available_dates.length > 4 && (
-                              <p className="text-sm text-gray-500 text-center">... and {exam.available_dates.length - 4} more dates</p>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-600 mb-2">Subjects:</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {exam.subjects.map((subject) => (
-                              <span key={subject} className={`px-3 py-1 rounded-full text-sm font-medium ${exam.exam_type === 'JEE_COMBO' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>
-                                {subject}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <Button
-                          className={`w-full mt-4 font-semibold py-3 ${exam.exam_type === 'JEE_COMBO' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
-                          onClick={() => {
-                            // Get exam dates from JSON file
-                            fetch('/data/exam_dates.json')
-                              .then(response => response.json())
-                              .then(data => {
-                                const dates = data[exam.exam_type] || [];
-                                handleExamTypeSelect(exam.exam_type, exam.exam_name, dates);
-                              })
-                              .catch(error => {
-                                console.error('Error loading exam dates:', error);
-                                // Fallback to showing form directly
-                                setShowForm(true);
-                              });
-                          }}
-                        >
-                          Select This Exam
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {showForm && (
+        ) : showForm && parentId && childId && availableExams.length > 0 ? (
           <ExamSelectionForm
             parentId={parentId}
             childId={childId}
             availableExams={availableExams}
             onSuccess={handleExamSelect}
-            onCancel={() => setShowForm(false)}
+            onCancel={() => router.push('/parent-dashboard')}
             existingSelection={examSelection}
-            preselectedExamType={selectedExamType}
-            preselectedDate={selectedDate}
           />
-        )}
-
-        {showDateDialog && (
-          <ExamDateSelectionDialog
-            open={showDateDialog}
-            onOpenChange={setShowDateDialog}
-            examType={selectedExamType}
-            examName={selectedExamName}
-            dates={examDates}
-            onSelectDate={handleDateSelect}
-          />
+        ) : (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <p className="text-gray-600">Loading exam selection form...</p>
+              <div className="mt-4 flex justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

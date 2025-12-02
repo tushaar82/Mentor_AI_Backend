@@ -51,9 +51,26 @@ export function RegisterForm() {
       setSuccessMessage('Registration successful! You can now login with your credentials.');
       // Auto-login after successful registration
       try {
-        await login(data.email_address, data.password);
-        // After login, redirect to preferences page for onboarding
-        router.push('/onboarding/preferences');
+        const userData = await login(data.email_address, data.password);
+        
+        // Registration is only for parents, so always go to onboarding
+        // Check onboarding status
+        try {
+          const { examAPI } = await import('@/lib/api');
+          const statusResponse = await examAPI.getOnboardingStatus(userData.id);
+          const status = statusResponse.data;
+          
+          // If onboarding is complete, redirect to parent dashboard
+          if (status.is_complete) {
+            router.push('/parent-dashboard');
+          } else {
+            // For new registrations, always start with preferences
+            router.push('/onboarding/preferences');
+          }
+        } catch (statusErr) {
+          // If status check fails, default to preferences page
+          router.push('/onboarding/preferences');
+        }
       } catch (loginErr: any) {
         // If auto-login fails, show success message and let user login manually
         setSuccessMessage('Registration successful! Please login with your credentials.');

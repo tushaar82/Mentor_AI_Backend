@@ -80,82 +80,114 @@ export function ExamDateSelectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-center">
-            Select Exam Date for {examName}
+          <DialogTitle className="text-2xl text-center flex items-center justify-center gap-2">
+            📅 Select Exam Date for {examName}
           </DialogTitle>
-          <DialogDescription className="text-center">
-            Choose your preferred exam date. Make sure to apply before the last date.
+          <DialogDescription className="text-center text-base">
+            Choose your preferred exam date. Plan ahead to ensure adequate preparation time.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 my-6">
+          <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-800 flex items-center">
+              <span className="mr-2">💡</span>
+              <strong>Pro Tip:</strong> Choose a date that gives you at least 3-4 months of preparation time for optimal results.
+            </p>
+          </div>
+          
           {dates.map((dateInfo, index) => {
             const daysRemaining = calculateDaysRemaining(dateInfo.date);
             const applicationDaysRemaining = calculateApplicationDaysRemaining(dateInfo.last_date_to_apply);
             const isUrgent = applicationDaysRemaining <= 30;
             const isPastApplication = applicationDaysRemaining < 0;
+            const isRecommended = index === 0; // Recommend the first date
             
             return (
-              <div 
-                key={index} 
-                className={`border rounded-lg p-4 hover:shadow-md transition-all cursor-pointer ${
-                  isPastApplication ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-300'
-                }`}
+              <div
+                key={index}
+                  className={`border rounded-lg p-5 hover:shadow-lg transition-all cursor-pointer relative ${
+                    isPastApplication ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:border-blue-400 bg-white'
+                  } ${isRecommended ? 'ring-2 ring-blue-400' : ''}`}
                 onClick={() => !isPastApplication && onSelectDate(dateInfo.date)}
               >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {isRecommended && (
+                  <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                    Recommended
+                  </div>
+                )}
+                
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold">
-                        {new Date(dateInfo.date).toLocaleDateString('en-US', {
-                          weekday: 'long',
+                    <div className="flex items-center gap-4 mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {new Date(dateInfo.date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </h3>
+                        <p className="text-lg text-gray-600">{new Date(dateInfo.date).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric'
-                        })}
-                      </h3>
+                        })}</p>
+                      </div>
                       {dateInfo.exam_type && (
-                        <Badge className={getExamTypeColor(dateInfo.exam_type)}>
+                        <Badge className={`${getExamTypeColor(dateInfo.exam_type)} text-sm px-3 py-1`}>
                           {getExamTypeLabel(dateInfo.exam_type)}
                         </Badge>
                       )}
                     </div>
-                    <p className="text-gray-600 mb-1">{dateInfo.session}</p>
+                    <p className="text-gray-700 text-base mb-3">{dateInfo.session}</p>
                     
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Badge variant="outline" className="text-sm">
-                        Exam Date: {new Date(dateInfo.date).toLocaleDateString()}
-                      </Badge>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-sm ${
-                          isUrgent ? 'border-red-500 text-red-600' : ''
-                        }`}
-                      >
-                        Last Date to Apply: {new Date(dateInfo.last_date_to_apply).toLocaleDateString()}
-                      </Badge>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-1">📅 Exam Date</p>
+                        <p className="font-semibold">{new Date(dateInfo.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className={`p-3 rounded-lg ${
+                        isUrgent ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
+                      }`}>
+                        <p className="text-sm text-gray-600 mb-1">⏰ Application Deadline</p>
+                        <p className={`font-semibold ${
+                          isUrgent ? 'text-red-700' : 'text-green-700'
+                        }`}>
+                          {new Date(dateInfo.last_date_to_apply).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="text-right">
-                    <div className="mb-2">
-                      <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-center lg:text-right">
+                    <div className={`inline-flex items-center justify-center rounded-lg p-4 ${
+                      daysRemaining <= 60 ? 'bg-red-50' : daysRemaining <= 120 ? 'bg-yellow-50' : 'bg-green-50'
+                    }`}>
+                      <div className="text-3xl font-bold mb-1">
                         {daysRemaining}
                       </div>
-                      <div className="text-sm text-gray-500">days until exam</div>
+                      <div className="text-sm text-gray-600">days until exam</div>
+                      {daysRemaining <= 60 && (
+                        <p className="text-xs text-red-600 mt-1">⚠️ Limited time - Start preparing now!</p>
+                      )}
                     </div>
                     
-                    <div>
-                      <div className={`text-lg font-semibold ${
-                        isUrgent ? 'text-red-600' : 'text-green-600'
-                      }`}>
+                    <div className={`inline-flex items-center justify-center rounded-lg p-3 mt-2 ${
+                      isPastApplication ? 'bg-gray-100' : isUrgent ? 'bg-red-100' : 'bg-green-100'
+                    }`}>
+                      <div className="text-lg font-semibold">
                         {applicationDaysRemaining}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-600">
                         {isPastApplication ? 'days past deadline' : 'days to apply'}
                       </div>
+                      {!isPastApplication && isUrgent && (
+                        <p className="text-xs text-red-600 mt-1">⏰ Apply soon!</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -164,10 +196,14 @@ export function ExamDateSelectionDialog({
           })}
         </div>
         
-        <DialogFooter>
-          <Button 
-            variant="outline" 
+        <DialogFooter className="flex justify-between items-center">
+          <div className="text-sm text-gray-500">
+            Select a date to proceed with exam selection
+          </div>
+          <Button
+            variant="outline"
             onClick={() => onOpenChange(false)}
+            className="px-6"
           >
             Cancel
           </Button>

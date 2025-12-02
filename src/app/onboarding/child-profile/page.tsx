@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { onboardingAPI } from '@/lib/api';
+import { onboardingAPI, examAPI } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,7 @@ export default function ChildProfilePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [childProfileSaved, setChildProfileSaved] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -98,9 +99,19 @@ export default function ChildProfilePage() {
       return;
     }
     
-    // Check if child profile already exists for this user
-    const checkChildProfile = async () => {
+    // Check if user has completed onboarding
+    const checkOnboardingStatus = async () => {
       try {
+        const statusResponse = await examAPI.getOnboardingStatus(user.id);
+        const status = statusResponse.data;
+        
+        // If onboarding is complete, redirect to parent dashboard
+        if (status?.onboarding_complete) {
+          router.push('/parent-dashboard');
+          return;
+        }
+        
+        // Check if child profile already exists for this user
         const response = await onboardingAPI.getChildProfile(user.id);
         if (response.data) {
           setChildProfileSaved(true);
@@ -114,7 +125,7 @@ export default function ChildProfilePage() {
       }
     };
     
-    checkChildProfile();
+    checkOnboardingStatus();
   }, [user, router]);
 
   const onSubmit = async (data: ChildProfileFormData) => {

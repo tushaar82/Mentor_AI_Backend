@@ -93,12 +93,12 @@ export default function ParentPreferencesPage() {
         // If preferences already exist, check if child profile exists and redirect accordingly
         const checkChildProfile = async () => {
           try {
-            await onboardingAPI.getChildProfile(user.id);
+            const childResponse = await onboardingAPI.getChildProfile(user.id);
             // If child profile exists, check if exam selection exists
             try {
-              await onboardingAPI.getExamSelection(response.data.child_id);
-              // Both exist, redirect to dashboard
-              router.push('/dashboard');
+              await examAPI.getExamSelection(childResponse.data.child_id);
+              // Both exist, redirect to parent dashboard
+              router.push('/parent-dashboard');
             } catch (err) {
               // Only child profile exists, redirect to exam selection
               router.push('/onboarding/exam-selection');

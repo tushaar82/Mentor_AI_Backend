@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().min(3, 'Email or username is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -38,10 +38,54 @@ export function LoginForm() {
     setError('');
     
     try {
-      await login(data.email, data.password);
-      // After login, redirect to preferences page for onboarding
-      router.push('/onboarding/preferences');
+      // Detect if this is a student login (username) or parent login (email)
+      const isEmail = data.email.includes('@');
+      const isStudentLogin = !isEmail;
+      
+      console.log('Login attempt:', { email: data.email, isEmail, isStudentLogin });
+      
+      const userData = await login(data.email, data.password, isStudentLogin);
+      
+      console.log('Login successful, user role:', userData.role);
+      
+      // Students go directly to their dashboard
+      if (userData.role === 'student' || userData.is_student) {
+        console.log('Redirecting to student dashboard');
+        router.push('/dashboard');
+        return;
+      }
+      
+      // Parents: Check onboarding status
+      console.log('Parent login, checking onboarding status');
+      try {
+        const { examAPI } = await import('@/lib/api');
+        const statusResponse = await examAPI.getOnboardingStatus(userData.id);
+        const status = statusResponse.data;
+        
+        console.log('Onboarding status:', status);
+        
+        // If onboarding is complete, redirect to parent dashboard
+        if (status.is_complete) {
+          router.push('/parent-dashboard');
+        } else {
+          // Otherwise, redirect to the appropriate onboarding step
+          if (!status.preferences_completed) {
+            router.push('/onboarding/preferences');
+          } else if (!status.child_profile_completed) {
+            router.push('/onboarding/child-profile');
+          } else if (!status.exam_selection_completed) {
+            router.push('/onboarding/exam-selection');
+          } else {
+            router.push('/onboarding/preferences');
+          }
+        }
+      } catch (statusErr) {
+        console.error('Failed to check onboarding status:', statusErr);
+        // If status check fails, default to parent dashboard
+        router.push('/parent-dashboard');
+      }
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.response?.data?.detail || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -57,13 +101,13 @@ export function LoginForm() {
       className="space-y-6"
     >
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">Email or Username</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="email"
-            type="email"
-            placeholder="you@example.com"
+            type="text"
+            placeholder="you@example.com or username"
             className="pl-10"
             {...register('email')}
           />
@@ -110,6 +154,12 @@ export function LoginForm() {
           'Sign In'
         )}
       </Button>
+
+      <div className="text-xs text-center text-gray-500 mt-4 p-3 bg-blue-50 rounded-md">
+        <p className="font-medium text-gray-700 mb-1">Login Instructions:</p>
+        <p><strong>Parents:</strong> Use your email address</p>
+        <p><strong>Students:</strong> Use your username (provided by parent)</p>
+      </div>
     </motion.form>
   );
 }
